@@ -42,16 +42,6 @@ The outcome is assumed to be continuous, and higher values are interpreted as be
         bsTooltip("initial", 
                   "Number of clusters initially enrolled before adaptive allocation begins.",
                   placement = "right", trigger = "hover", options = list(container = "body")),
-        
-        numericInput("sigma2W", "Within-cluster variance:", 1, min = 0),
-        bsTooltip("sigma2W", 
-                  "Variance of individual-level outcomes within each cluster.",
-                  placement = "right", trigger = "hover", options = list(container = "body")),
-        
-        numericInput("ICC", "Intra-cluster correlation (ICC):", 0.1, min = 0, max = 1),
-        bsTooltip("ICC", 
-                  "Proportion of total variance that is attributable to the clustering effect.",
-                  placement = "right", trigger = "hover", options = list(container = "body")),
   
         numericInput("U", "Upper threshold (U):", 0.98),
         bsTooltip("U", 
@@ -88,7 +78,6 @@ server <- function(input, output, session) {
   
   rv <- reactiveValues(
     n_cluster = NULL, n_each = NULL, n_repeats = NULL, initial = NULL,
-    sigma2W = NULL, ICC = NULL, sigma2B = NULL, Sigma = NULL,
     y_A = list(),
     y_B = list(),
     outcomes = list(), allocations = NULL,
@@ -123,12 +112,6 @@ server <- function(input, output, session) {
     rv$n_each_max <- input$n_each_max
     rv$n_repeats <- input$n_repeats
     rv$initial <- input$initial
-    rv$sigma2W <- input$sigma2W
-    rv$ICC <- input$ICC
-    rv$sigma2B <- rv$ICC / (1 - rv$ICC)
-    
-    rv$Sigma <- matrix(rv$sigma2B, nrow = rv$n_each_max, ncol = rv$n_each_max)
-    diag(rv$Sigma) <- rv$sigma2W + rv$sigma2B
     
     rv$outcomes <- vector("list", rv$n_cluster)
     rv$cluster_sizes <- rep(NA, rv$n_cluster)
@@ -223,7 +206,9 @@ server <- function(input, output, session) {
             cluster_size_max = rv$n_each_max,
             Y_A = lapply(rv$y_A, function(x) c(x, rep(0, rv$n_each_max - length(x)))),
             Y_B = lapply(rv$y_B, function(x) c(x, rep(0, rv$n_each_max - length(x)))),
-            Sigma = rv$Sigma 
+            A_sigma_W = 1,  # Half-Cauchy scale based on expected var
+            rho_alpha = 1,                 # Beta(1,1) = Uniform(0,1) on ICC
+            rho_beta  = 1 
           )
           
 #          incProgress(0.3, detail = "Sampling from posterior...")
@@ -269,7 +254,9 @@ server <- function(input, output, session) {
           cluster_size_max = rv$n_each_max,
           Y_A = lapply(rv$y_A, function(x) c(x, rep(0, rv$n_each_max - length(x)))),
           Y_B = lapply(rv$y_B, function(x) c(x, rep(0, rv$n_each_max - length(x)))),
-          Sigma = rv$Sigma 
+          A_sigma_W = 1,  # Half-Cauchy scale based on expected var
+          rho_alpha = 1,                 # Beta(1,1) = Uniform(0,1) on ICC
+          rho_beta  = 1 
         )
         
 #        incProgress(0.3, detail = "Sampling from posterior...")
